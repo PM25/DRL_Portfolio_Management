@@ -3,10 +3,12 @@ import math
 import csv
 import sys
 
+
 class StockData:
     def __init__(self, path):
         self.stock_data = self.csv_to_list(path)
         self.data = self.format(self.stock_data)
+        self.sample_size, self.feature_size = self.data.shape
 
     def csv_to_list(self, path):
         out_list = []
@@ -56,6 +58,8 @@ def get_state(stock_list, end_time, win_size):
     if(start_time >= 0):
         block = stock_list[start_time:end_time+1]
     else:
-        block = abs(start_time)*[stock_list[0]] + stock_list[:end_time+1]
+        front = abs(start_time) * [stock_list[0]]
+        rear = stock_list[:end_time+1]
+        block = np.concatenate((front, rear), axis=0)
 
-    return np.array([block])
+    return np.array(block)
