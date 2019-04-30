@@ -1,15 +1,19 @@
+from mylib import functions
+
 import numpy as np
-import math
 import csv
-import sys
 
 
 class StockData:
+    # {raw_data}: stock data without any process
+    # {normalize_data}: stock data with normalization
     def __init__(self, path):
-        self.stock_data = self.csv_to_list(path)
-        self.data = self.format(self.stock_data)
-        self.sample_size, self.feature_size = self.data.shape
+        self.raw_data = self.csv_to_list(path)
+        self.normalize_data = self.clean_data(self.raw_data)
+        self.sample_size, self.feature_size = self.normalize_data.shape
 
+
+    # Convert CSV file to python list
     def csv_to_list(self, path):
         out_list = []
 
@@ -20,53 +24,37 @@ class StockData:
 
         return out_list[1:]  # Remove the header
 
-    def normal(self, data):
+
+    def clean_data(self, raw_data):
+        out = np.zeros((len(raw_data), len(raw_data[0])))
+        for i in range(len(raw_data)):
+            for j in range(len(raw_data[0])):
+                if(functions.is_number(raw_data[i][j])):
+                    out[i, j] = raw_data[i][j]
+                elif(functions.is_date(raw_data[i][j])):
+                    out[i, j] = functions.date_to_number(raw_data[i][j])
+                else:
+                    out[i, j] = 0
+
+        return self.normalize(out)
+
+
+    def normalize(self, data):
         mean = data.mean(axis=0)
         data -= mean
         std = data.std(axis=0)
         data /= std
         return data
 
-    def normalize(self, data):
-        if(is_number(data)):
-            return float(data)
+
+    def get_state(self, end_time, win_size):
+        start_time = end_time - win_size + 1
+
+        if(start_time >= 0):
+            data_piece = self.normalize_data[start_time:end_time+1]
         else:
-            combine_num = ""
-            for num in data.split('-'):
-                if(not is_number(num)): sys.exit("Error: Wrong Format.")
-                combine_num += num
+            front_part = abs(start_time) * [self.normalize_data[0]]
+            rear_part = self.normalize_data[:end_time+1]
+            data_piece = np.concatenate((front_part, rear_part), axis=0)
 
-            return int(combine_num)
-
-    def format(self, data_list):
-        out = np.zeros((len(data_list), len(data_list[0])))
-        for i in range(len(data_list)):
-            for j in range(len(data_list[0])):
-                out[i, j] = self.normalize(data_list[i][j])
-
-        return self.normal(out)
-
-
-def is_number(data):
-    try:
-        if ('.' in data):
-            data = float(data)
-        else:
-            data = int(data)
-        return True
-
-    except ValueError:
-        return False
-
-
-def get_state(stock_list, end_time, win_size):
-    start_time = end_time - win_size + 1
-
-    if(start_time >= 0):
-        block = stock_list[start_time:end_time+1]
-    else:
-        front = abs(start_time) * [stock_list[0]]
-        rear = stock_list[:end_time+1]
-        block = np.concatenate((front, rear), axis=0)
-
-    return np.array(block)
+        return data_piece

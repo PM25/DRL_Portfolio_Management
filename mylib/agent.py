@@ -22,8 +22,8 @@ class Agent:
         self.state_size = state_size
         self.action_size = 3 # 0:Sit, 1:Buy, 2:Sell
         self.memory = deque(maxlen=1000)
-        self.epsilon = 0.01
-        self.gamma = 0.9
+        self.epsilon = 0.1
+        self.gamma = 0.99
         self.base_money = 1000
         self.money = self.base_money
         self.buy_history = deque(maxlen=1000)
