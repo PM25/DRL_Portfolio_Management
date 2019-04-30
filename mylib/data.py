@@ -20,6 +20,13 @@ class StockData:
 
         return out_list[1:]  # Remove the header
 
+    def normal(self, data):
+        mean = data.mean(axis=0)
+        data -= mean
+        std = data.std(axis=0)
+        data /= std
+        return data
+
     def normalize(self, data):
         if(is_number(data)):
             return float(data)
@@ -37,7 +44,7 @@ class StockData:
             for j in range(len(data_list[0])):
                 out[i, j] = self.normalize(data_list[i][j])
 
-        return out
+        return self.normal(out)
 
 
 def is_number(data):
