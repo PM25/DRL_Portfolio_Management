@@ -1,1 +1,1 @@
-# DRL_Stock_Prediction
+# DRL_Portfolio_Management
