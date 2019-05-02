@@ -7,9 +7,15 @@ import csv
 class StockData:
     # {raw_data}: stock data without any process
     # {normalize_data}: stock data with normalization
-    def __init__(self, path):
+    def __init__(self, path, mean=None, std=None):
         self.raw_data = self.csv_to_list(path)
-        self.normalize_data = self.clean_data(self.raw_data)
+        self.clean_data = self.clean(self.raw_data)
+        self.mean, self.std = mean , std
+        if(mean is None):
+            self.mean = self.clean_data.mean(axis=0)
+        if(std is None):
+            self.std = self.clean_data.std(axis=0)
+        self.normalize_data = self.normalize(self.clean_data, self.mean, self.std)
         self.sample_size, self.feature_size = self.normalize_data.shape
 
 
@@ -25,7 +31,7 @@ class StockData:
         return out_list[1:]  # Remove the header
 
 
-    def clean_data(self, raw_data):
+    def clean(self, raw_data):
         out = np.zeros((len(raw_data), len(raw_data[0])))
         for i in range(len(raw_data)):
             for j in range(len(raw_data[0])):
@@ -36,14 +42,16 @@ class StockData:
                 else:
                     out[i, j] = 0
 
-        return self.normalize(out)
+        return out
 
 
-    def normalize(self, data):
-        mean = data.mean(axis=0)
+    def normalize(self, data, mean=None, std=None):
+        if(mean is None): mean = data.mean(axis=0)
+        if(std is None): std = data.std(axis=0)
+
         data -= mean
-        std = data.std(axis=0)
         data /= std
+
         return data
 
 

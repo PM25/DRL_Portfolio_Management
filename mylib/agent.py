@@ -10,7 +10,7 @@ import os
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
-config.gpu_options.allocator_type = 'BFC' #A "Best-fit with coalescing" algorithm, simplified from a version of dlmalloc.
+config.gpu_options.allocator_type = 'BFC'
 config.gpu_options.per_process_gpu_memory_fraction = 0.3
 config.gpu_options.allow_growth = True
 set_session(tf.Session(config=config))
@@ -33,6 +33,7 @@ class Agent:
             self.model = self.create_model()
         else:
             self.model = models.load_model("models/" + model_name)
+            print("{} Loaded!".format(model_name))
 
 
     def create_model(self):
