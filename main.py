@@ -1,36 +1,51 @@
-import sys
 from mylib.agent import Agent
 from mylib import data
+import argparse
+import json
+import os
+import numpy as np
 
-if (len(sys.argv) == 1):
-    stock_path = input("Stock File Path:")
-    if (stock_path == ""): stock_path = "data/validation/2002.TW.csv"
-    model_name = input("Model Name:")
-    if (model_name == ""): model_name = "episode_10"
-elif (len(sys.argv) == 4):
-    stock_path = sys.argv[1]
-    model_name = sys.argv[2]
-else:
-    sys.exit("Error: Wrong number of parameter.")
+parser = argparse.ArgumentParser(description="Portfolio Management Predict")
+parser.add_argument("--test", "-t", type=str, help="Path to stock test data.")
+parser.add_argument("--window", "-w", type=int, help="Window Size.")
+parser.add_argument("--model", "-m", type=str, help="Model Name.")
+args = parser.parse_args()
+
+# Default Data
+if (args.test == None): args.test = "data/test/2002.TW.csv"
+if (args.window == None): args.window = 10
+if (args.model == None):
+    if(not os.path.isfile("models/metadata.json")):
+        start_episode = 1
+        stockdata = data.StockData(args.train)
+        agent = Agent(args.window)
+    else:
+        with open("models/metadata.json", 'r') as in_file:
+            metadata = json.load(in_file)
+        agent = Agent(args.window, metadata["model"])
+        std = np.array(metadata["std"])
+        mean = np.array(metadata["mean"])
+        start_episode = metadata["episode"]
+        stockdata = data.StockData(args.test, mean, std)
+
 
 window_size = 10
-agent = Agent(window_size, model_name)
 model = agent.model
 
-stockdata = data.StockData(stock_path)
-stock_data = stockdata.stock_data
+stockdata = data.StockData(args.test)
+stock_data = stockdata.raw_data
 
 
-state = data.get_state(stockdata.data, 0, window_size)
+state = stockdata.get_state(0, args.window)
 buy_count = 0
 sell_count = 0
 for sample_step in range(1, stockdata.sample_size):
     reward = agent.money - agent.base_money
     done = True if (sample_step != stockdata.sample_size - 1) else False
-    next_state = data.get_state(stockdata.data, sample_step, window_size)
-    close_price = float(stockdata.stock_data[sample_step][1])
+    next_state = stockdata.get_state(sample_step, args.window)
+    close_price = float(stockdata.raw_data[sample_step][1])
 
-    action = agent.choose_action(state)
+    action = agent.choose_action(state, 0)
     if (action == 0):  # Sit
         pass
     elif (action == 1):  # Buy
@@ -51,5 +66,5 @@ for sample_step in range(1, stockdata.sample_size):
             print("Failed SELL")
     print("BUY {}, SELL {}".format(buy_count, sell_count))
     print("REWARD", reward)
-    agent.deep_q_learning(state, reward, action, next_state, done)
+    agent.deep_q_learning(state, reward, action, next_state, done, False)
 print("Total Reward", reward)

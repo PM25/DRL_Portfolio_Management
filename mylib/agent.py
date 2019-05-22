@@ -33,7 +33,7 @@ class Agent:
             self.model = self.create_model()
         else:
             self.model = models.load_model("models/" + model_name)
-            print("{} Loaded!".format(model_name))
+            print("Model {} Loaded!".format(model_name))
 
 
     def create_model(self):
@@ -82,15 +82,17 @@ class Agent:
             return self.money
 
 
-    def deep_q_learning(self, state, reward, action, next_state, done):
+    def deep_q_learning(self, state, reward, action, next_state, done, update=True):
         if(not done):
             q_value = reward + self.gamma * np.max(self.model.predict(next_state)[0])
         else:
             q_value = reward
 
-        t = self.model.predict(state)
-        t[0][action] = q_value
-        self.model.fit(state, t, verbose=0)
+        if (update == True):
+            t = self.model.predict(state)
+            t[0][action] = q_value
+            self.model.fit(state, t, verbose=0)
+            # self.model.fit(state, t)
 
 
     def reset(self):
