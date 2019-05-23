@@ -92,8 +92,6 @@ class Agent:
                 q_value = reward
 
             predict_q_value = self.model.predict(state)
-            # if(action != 0):
-            #     print(predict_q_value[0][action], q_value, action)
             predict_q_value[0][action] = q_value
             self.model.fit(state, predict_q_value, epochs=1, verbose=0)
 
