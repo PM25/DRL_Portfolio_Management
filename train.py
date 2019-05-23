@@ -46,26 +46,37 @@ for episode_step in range(start_episode, end_episode):
 
     buy_count = 0
     sell_count = 0
-    for sample_step in range(1, stockdata.sample_size):
-        reward = agent.money - agent.base_money
-        done = True if (sample_step != stockdata.sample_size - 1) else False
+    prev_money = agent.base_money
+    reward = 0
+    for sample_step in range(0, stockdata.sample_size):
+        done = True if (sample_step == stockdata.sample_size - 1) else False
         next_state = stockdata.get_state(sample_step, args.window)
         close_price = float(stockdata.raw_data[sample_step][1])
 
-        action = agent.choose_action(state, 0)
+        reward = agent.money - agent.base_money #tmp
+        action = agent.choose_action(state)
         if (action == 0):  # Sit
-            pass
+            reward -= 0.3
         elif (action == 1):  # Buy
             money = agent.buy(close_price)
             if (money != False):
-                reward = money - agent.base_money
                 buy_count += 1
+                reward += 0.5
         elif (action == 2):  # Sell
             money = agent.sell(close_price)
             if (money != False):
-                reward = money - agent.base_money
                 sell_count += 1
-        agent.deep_q_learning(state, reward, action, next_state, done)
+            else:
+                reward -= 100
+        # reward = (agent.money - prev_money) + \
+        #          0.2 * (agent.money - agent.base_money)
+        # if(len(agent.buff) == 0):
+        #     reward = agent.money - agent.base_money
+        if(sample_step == stockdata.sample_size - 1):
+            while(agent.sell(close_price)): pass
+            reward = agent.money - agent.base_money
+        prev_money = agent.money
+        agent.store_q_value(state, action, reward, next_state, done)
     print("BUY", buy_count, ", SELL", sell_count)
     print("Total Reward", reward)
     agent.reset()

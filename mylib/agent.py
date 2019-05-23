@@ -17,12 +17,13 @@ set_session(tf.Session(config=config))
 
 
 class Agent:
-    def __init__(self, state_size, model_name=""):
+    def __init__(self, state_size, model_name="", buff_size=30):
         self.feature_size = 7
         self.state_size = state_size
         self.action_size = 3 # 0:Sit, 1:Buy, 2:Sell
-        self.memory = deque(maxlen=1000)
-        self.epsilon = 0.1
+        self.buff = deque(maxlen=500)
+        self.buff_size= buff_size
+        self.epsilon = 0.01
         self.gamma = 0.99
         self.base_money = 1000
         self.money = self.base_money
@@ -82,25 +83,33 @@ class Agent:
             return self.money
 
 
-    def deep_q_learning(self, state, reward, action, next_state, done, update=True):
-        if(not done):
-            q_value = reward + self.gamma * np.max(self.model.predict(next_state)[0])
-        else:
-            q_value = reward
+    def deep_q_learning(self):
+        while(self.buff):
+            (state, action, reward, next_state, done) = self.buff.popleft()
+            if(not done):
+                q_value = reward + self.gamma * np.max(self.model.predict(next_state)[0])
+            else:
+                q_value = reward
 
-        if (update == True):
-            t = self.model.predict(state)
-            t[0][action] = q_value
-            self.model.fit(state, t, verbose=0)
-            # self.model.fit(state, t)
+            predict_q_value = self.model.predict(state)
+            # if(action != 0):
+            #     print(predict_q_value[0][action], q_value, action)
+            predict_q_value[0][action] = q_value
+            self.model.fit(state, predict_q_value, epochs=1, verbose=0)
 
 
     def reset(self):
         self.money = self.base_money
-        self.memory.clear()
+        self.buff.clear()
         self.buy_history.clear()
         self.hold_stock = 0
 
 
     def save_model(self, name="model", path="models"):
         self.model.save(os.path.join(path, name))
+
+
+    def store_q_value(self, state, action, reward, next_state, done):
+        self.buff.append((state, action, reward, next_state, done))
+        if(len(self.buff) == self.buff_size):
+            self.deep_q_learning()
