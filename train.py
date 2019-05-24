@@ -1,17 +1,17 @@
 from mylib.agent import Agent
 from mylib import data
 
-import sys
 import numpy as np
 import argparse
 import json
 import os
 
+
 parser = argparse.ArgumentParser(description="Portfolio Management Model Training")
-parser.add_argument("--train", "-t", type=str, help="Path to stock training data.")
-parser.add_argument("--window", "-w", type=int, help="Window Size.")
-parser.add_argument("--episode", "-e", type=int, help="Episode Size.")
-parser.add_argument("--model", "-m", type=str, help="Model Name.")
+parser.add_argument("--train", "-t", type=str, default="data/train/2002.TW.csv", help="Path to stock training data.")
+parser.add_argument("--window", "-w", type=int, default=10, help="Window Size.")
+parser.add_argument("--episode", "-e", type=int, default=1000, help="Episode Size.")
+parser.add_argument("--model", "-m", type=str, default=None, help="Model Name.")
 args = parser.parse_args()
 
 # Default Data
@@ -29,7 +29,7 @@ if (args.model == None):
         agent = Agent(args.window, metadata["model"])
         std = np.array(metadata["std"])
         mean = np.array(metadata["mean"])
-        start_episode = metadata["episode"]
+        start_episode = metadata["episode"] + 1
         stockdata = data.StockData(args.train, mean, std)
 
 stock_data = stockdata.raw_data
@@ -42,45 +42,48 @@ end_episode = start_episode + args.episode + 1
 
 
 for episode_step in range(start_episode, end_episode):
-    state = stockdata.get_state(0, args.window)
+    next_state = stockdata.get_state(0, args.window)
 
     buy_count = 0
     sell_count = 0
-    prev_money = agent.base_money
     reward = 0
+    total_buy = 0
     for sample_step in range(0, stockdata.sample_size):
         done = True if (sample_step == stockdata.sample_size - 1) else False
-        next_state = stockdata.get_state(sample_step, args.window)
-        close_price = float(stockdata.raw_data[sample_step][1])
+        state = next_state
+        if(sample_step != stockdata.sample_size - 1):
+            next_state = stockdata.get_state(sample_step+1, args.window)
+        close_price = float(stockdata.raw_data[sample_step][4])
 
-        reward = agent.money - agent.base_money #tmp
         action = agent.choose_action(state)
         if (action == 0):  # Sit
-            reward -= 0.3
+            reward -= 1
         elif (action == 1):  # Buy
             money = agent.buy(close_price)
             if (money != False):
                 buy_count += 1
-                reward += 0.5
+                reward = agent.money - agent.base_money
+                total_buy += close_price
         elif (action == 2):  # Sell
             money = agent.sell(close_price)
             if (money != False):
                 sell_count += 1
+                reward = agent.money - agent.base_money
             else:
-                reward -= 100
-        # reward = (agent.money - prev_money) + \
-        #          0.2 * (agent.money - agent.base_money)
-        # if(len(agent.buff) == 0):
-        #     reward = agent.money - agent.base_money
+                reward -= 5
+
         if(sample_step == stockdata.sample_size - 1):
             while(agent.sell(close_price)): pass
             reward = agent.money - agent.base_money
-        prev_money = agent.money
         agent.store_q_value(state, action, reward, next_state, done)
-    print("BUY", buy_count, ", SELL", sell_count)
-    print("Total Reward", reward)
+    print("BUY {}, SELL {}".format(buy_count, sell_count))
+    print("Total Reward: {:.1f} ({:.2%})".format(reward, reward/total_buy))
+    print()
     agent.reset()
-    if (episode_step % 10 == 0):
+    if (episode_step % 10 == 0 and episode_step != 0):
+        print('-' * 10)
+        print("Save Model: episode_{}".format(episode_step))
+        print('-' * 10)
         agent.save_model("episode_{}".format(episode_step))
 
         out_data["model"] = "episode_{}".format(episode_step)

@@ -39,7 +39,7 @@ class Agent:
 
     def create_model(self):
         model = models.Sequential()
-        model.add(layers.Dense(units=64, input_dim=self.feature_size, activation="relu"))
+        model.add(layers.Dense(units=64, input_dim=self.feature_size*self.state_size, activation="relu"))
         model.add(layers.Dense(units=32, activation="relu"))
         model.add(layers.Dense(units=32, activation="relu"))
         model.add(layers.Dense(self.action_size, activation="linear"))
@@ -58,6 +58,7 @@ class Agent:
         if random.random() <= epsilon:
             return random.randrange(self.action_size)
 
+        state = state.reshape((1, self.feature_size*self.state_size))
         action = np.argmax(self.model.predict(state)[0])
         return action
 
@@ -73,6 +74,13 @@ class Agent:
             return self.money
 
 
+    def can_buy(self, price, amount=1):
+        if(self.money < (price * amount)):
+            return False
+        else:
+            return True
+
+
     def sell(self, price, amount=1):
         if(self.hold_stock < amount):
             return False
@@ -83,9 +91,18 @@ class Agent:
             return self.money
 
 
+    def can_sell(self, price, amount=1):
+        if(self.hold_stock < amount):
+            return False
+        else:
+            return True
+
+
     def deep_q_learning(self):
         while(self.buff):
             (state, action, reward, next_state, done) = self.buff.popleft()
+            state = state.reshape(1, self.state_size*self.feature_size)
+            next_state = next_state.reshape(1, self.state_size*self.feature_size)
             if(not done):
                 q_value = reward + self.gamma * np.max(self.model.predict(next_state)[0])
             else:
