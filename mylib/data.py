@@ -9,6 +9,7 @@ class StockData:
     # {normalize_data}: stock data with normalization
     def __init__(self, path, mean=None, std=None):
         self.raw_data = self.csv_to_list(path)
+        self.feature_size = len(self.raw_data[0])
         self.clean_data = self.clean(self.raw_data)
         self.mean, self.std = mean , std
         if(mean is None):
@@ -55,14 +56,25 @@ class StockData:
         return data
 
 
-    def get_state(self, end_time, win_size):
+    def get_state(self, end_time, win_size, extra_features=None):
         start_time = end_time - win_size + 1
 
         if(start_time >= 0):
-            data_piece = self.normalize_data[start_time:end_time+1]
+            data_slice = self.normalize_data[start_time:end_time+1]
         else:
             front_part = abs(start_time) * [self.normalize_data[0]]
             rear_part = self.normalize_data[:end_time+1]
-            data_piece = np.concatenate((front_part, rear_part), axis=0)
+            data_slice = np.concatenate((front_part, rear_part), axis=0)
 
-        return data_piece
+        if(extra_features != None):
+            extra_features = self.normalize(np.array(extra_features, dtype='float64'),
+                                            mean=np.array([100, 1000], dtype='float64'),
+                                            std=np.array([100, 1000], dtype='float64'))
+            extra_features = list(extra_features)
+            missing_count = win_size - len(extra_features)
+            if(missing_count > 0):
+                front_part = missing_count * [ extra_features[0] ]
+                extra_features = np.concatenate((front_part, extra_features), axis=0)
+            data_slice = np.concatenate((data_slice, extra_features), axis=1)
+
+        return data_slice

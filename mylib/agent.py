@@ -17,9 +17,9 @@ set_session(tf.Session(config=config))
 
 
 class Agent:
-    def __init__(self, state_size, model_name="", buff_size=30):
-        self.feature_size = 7
-        self.state_size = state_size
+    def __init__(self, window_size, feature_size, model_name="", buff_size=30):
+        self.feature_size = feature_size
+        self.window_size = window_size
         self.action_size = 3 # 0:Sit, 1:Buy, 2:Sell
         self.buff = deque(maxlen=500)
         self.buff_size= buff_size
@@ -39,7 +39,7 @@ class Agent:
 
     def create_model(self):
         model = models.Sequential()
-        model.add(layers.Dense(units=64, input_dim=self.feature_size*self.state_size, activation="relu"))
+        model.add(layers.Dense(units=64, input_dim=self.feature_size*self.window_size, activation="relu"))
         model.add(layers.Dense(units=32, activation="relu"))
         model.add(layers.Dense(units=32, activation="relu"))
         model.add(layers.Dense(self.action_size, activation="linear"))
@@ -58,7 +58,7 @@ class Agent:
         if random.random() <= epsilon:
             return random.randrange(self.action_size)
 
-        state = state.reshape((1, self.feature_size*self.state_size))
+        state = state.reshape((1, self.feature_size*self.window_size))
         action = np.argmax(self.model.predict(state)[0])
         return action
 
@@ -101,8 +101,8 @@ class Agent:
     def deep_q_learning(self):
         while(self.buff):
             (state, action, reward, next_state, done) = self.buff.popleft()
-            state = state.reshape(1, self.state_size*self.feature_size)
-            next_state = next_state.reshape(1, self.state_size*self.feature_size)
+            state = state.reshape(1, self.window_size * self.feature_size)
+            next_state = next_state.reshape(1, self.window_size * self.feature_size)
             if(not done):
                 q_value = reward + self.gamma * np.max(self.model.predict(next_state)[0])
             else:

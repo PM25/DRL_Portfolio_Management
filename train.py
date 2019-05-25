@@ -22,15 +22,17 @@ if (args.model == None):
     if(not os.path.isfile("models/metadata.json")):
         start_episode = 1
         stockdata = data.StockData(args.train)
-        agent = Agent(args.window)
+        feature_size = stockdata.feature_size + 2 # Hold stock & Possess money
+        agent = Agent(args.window, feature_size)
     else:
         with open("models/metadata.json", 'r') as in_file:
             metadata = json.load(in_file)
-        agent = Agent(args.window, metadata["model"])
         std = np.array(metadata["std"])
         mean = np.array(metadata["mean"])
         start_episode = metadata["episode"] + 1
         stockdata = data.StockData(args.train, mean, std)
+        feature_size = stockdata.feature_size + 2
+        agent = Agent(args.window, feature_size, metadata["model"])
 
 stock_data = stockdata.raw_data
 mean = stockdata.mean
@@ -42,7 +44,8 @@ end_episode = start_episode + args.episode + 1
 
 
 for episode_step in range(start_episode, end_episode):
-    next_state = stockdata.get_state(0, args.window)
+    extra_features = [[agent.hold_stock, agent.money]]
+    next_state = stockdata.get_state(0, args.window, extra_features)
 
     buy_count = 0
     sell_count = 0
@@ -51,8 +54,6 @@ for episode_step in range(start_episode, end_episode):
     for sample_step in range(0, stockdata.sample_size):
         done = True if (sample_step == stockdata.sample_size - 1) else False
         state = next_state
-        if(sample_step != stockdata.sample_size - 1):
-            next_state = stockdata.get_state(sample_step+1, args.window)
         close_price = float(stockdata.raw_data[sample_step][4])
 
         action = agent.choose_action(state)
@@ -64,17 +65,26 @@ for episode_step in range(start_episode, end_episode):
                 buy_count += 1
                 reward = agent.money - agent.base_money
                 total_buy += close_price
+            else:
+                reward -= 1
         elif (action == 2):  # Sell
             money = agent.sell(close_price)
             if (money != False):
                 sell_count += 1
                 reward = agent.money - agent.base_money
             else:
-                reward -= 5
+                reward -= 10
 
         if(sample_step == stockdata.sample_size - 1):
             while(agent.sell(close_price)): pass
             reward = agent.money - agent.base_money
+
+        extra_features.append([agent.hold_stock, agent.money])
+        while(len(extra_features) > agent.window_size):
+            extra_features.pop(0)
+        if(sample_step != stockdata.sample_size - 1):
+            next_state = stockdata.get_state(sample_step+1, args.window, extra_features)
+
         agent.store_q_value(state, action, reward, next_state, done)
     print("BUY {}, SELL {}".format(buy_count, sell_count))
     print("Total Reward: {:.1f} ({:.2%})".format(reward, reward/total_buy))
