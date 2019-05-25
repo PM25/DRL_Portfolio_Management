@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 
 def is_number(data):
     try:
@@ -27,9 +28,7 @@ def date_to_number(data):
     if(is_number(data)):
         return float(data)
     else:
-        combine_num = ""
-        for num in data.split('-'):
-            if(not is_number(num)): sys.exit("Error: Wrong Format.")
-            combine_num += num
+        (year, month, day) = map(int, data.split('-'))
+        timestamp = datetime.timestamp(datetime(year, month, day))
 
-        return int(combine_num)
+        return timestamp

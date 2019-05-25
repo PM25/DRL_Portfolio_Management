@@ -9,8 +9,8 @@ import os
 
 
 parser = argparse.ArgumentParser(description="Portfolio Management Model Training")
-parser.add_argument("--train", "-t", type=str, default="data/test/2002.TW.csv", help="Path to stock training data.")
-parser.add_argument("--window", "-w", type=int, default=10, help="Window Size.")
+parser.add_argument("--train", "-t", type=str, default="data/test/_2002.TW.csv", help="Path to stock training data.")
+parser.add_argument("--window", "-w", type=int, default=20, help="Window Size.")
 parser.add_argument("--episode", "-e", type=int, default=1000, help="Episode Size.")
 parser.add_argument("--model", "-m", type=str, default=None, help="Model Name.")
 args = parser.parse_args()
@@ -28,7 +28,7 @@ if (os.path.isfile(meta_path)):
     if(args.model != None):
         model_path = os.path.join(model_base_path, args.model)
     else:
-        model_path = meta_data["model"]
+        model_path = os.path.join(model_base_path, meta_data["model"])
     feature_size = stock_data.feature_size + 2
     agent = Agent(args.window, feature_size, model_path)
 else:
@@ -55,30 +55,28 @@ next_state = stock_data.get_state(0, args.window, extra_features)
 for sample_step in range(0, stock_data.sample_size):
     done = True if (sample_step == stock_data.sample_size - 1) else False
     state = next_state
-    close_price = float(stock_data.raw_data[sample_step][4])
-    date = stock_data.raw_data[sample_step][0]
+    close_price = float(stock_data.raw_data[sample_step][2])
+    date = stock_data.raw_data[sample_step][1]
     price_history.append((date, close_price))
 
     # Choose Action
-    action = agent.choose_action(state)
+    action = agent.choose_action(state, 0)
     action_history.append(action)
     if (action == 0):  # Sit
-        reward -= 0
+        reward -= 0.8
     elif (action == 1):  # Buy
         money = agent.buy(close_price)
         if (money != False):
             buy_count += 1
             reward = agent.money - agent.base_money
             total_buy += close_price
-        else:
-            reward -= 1
     elif (action == 2):  # Sell
         money = agent.sell(close_price)
         if (money != False):
             sell_count += 1
             reward = agent.money - agent.base_money
         else:
-            reward -= 10
+            reward -= 7
 
     if(sample_step == stock_data.sample_size - 1):
         while(agent.sell(close_price)): pass

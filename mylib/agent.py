@@ -17,30 +17,32 @@ set_session(tf.Session(config=config))
 
 
 class Agent:
-    def __init__(self, window_size, feature_size, model_name="", buff_size=30):
+    def __init__(self, window_size, feature_size, model_path="", buff_size=30):
         self.feature_size = feature_size
         self.window_size = window_size
         self.action_size = 3 # 0:Sit, 1:Buy, 2:Sell
         self.buff = deque(maxlen=500)
         self.buff_size= buff_size
         self.epsilon = 0.01
-        self.gamma = 0.99
+        self.gamma = 0.95
         self.base_money = 1000
         self.money = self.base_money
         self.buy_history = deque(maxlen=1000)
         self.hold_stock = 0
 
-        if(model_name == ""):
+        if(model_path == ""):
             self.model = self.create_model()
         else:
-            self.model = models.load_model("models/" + model_name)
-            print("Model {} Loaded!".format(model_name))
+            self.model = models.load_model(model_path)
+            print("Model {} Loaded!".format(model_path))
 
 
     def create_model(self):
         model = models.Sequential()
-        model.add(layers.Dense(units=64, input_dim=self.feature_size*self.window_size, activation="relu"))
-        model.add(layers.Dense(units=32, activation="relu"))
+        model.add(layers.Dense(units=256, input_dim=self.feature_size * self.window_size, activation="relu"))
+        model.add(layers.Dense(units=128, activation="relu"))
+        model.add(layers.Dense(units=64, activation="relu"))
+        model.add(layers.Dense(units=64, activation="relu"))
         model.add(layers.Dense(units=32, activation="relu"))
         model.add(layers.Dense(self.action_size, activation="linear"))
         model.compile(loss="mse", optimizer=optimizers.Adam(lr=0.001))

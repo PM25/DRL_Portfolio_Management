@@ -53,6 +53,8 @@ class StockData:
         data -= mean
         data /= std
 
+        data[np.isnan(data)] = 0
+
         return data
 
 
