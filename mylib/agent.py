@@ -17,15 +17,16 @@ set_session(tf.Session(config=config))
 
 
 class Agent:
-    def __init__(self, window_size, feature_size, model_path="", buff_size=30):
+    def __init__(self, window_size, feature_size, model_path="", buff_size=30, base_money=1000):
         self.feature_size = feature_size
         self.window_size = window_size
         self.action_size = 3 # 0:Sit, 1:Buy, 2:Sell
         self.buff = deque(maxlen=500)
         self.buff_size= buff_size
-        self.epsilon = 0.01
+        self.epsilon = 0.05
+        self.epsilon_decay = 0.95
         self.gamma = 0.95
-        self.base_money = 1000
+        self.base_money = base_money
         self.money = self.base_money
         self.buy_history = deque(maxlen=1000)
         self.hold_stock = 0
@@ -113,6 +114,7 @@ class Agent:
             predict_q_value = self.model.predict(state)
             predict_q_value[0][action] = q_value
             self.model.fit(state, predict_q_value, epochs=1, verbose=0)
+        self.epsilon *= self.epsilon_decay
 
 
     def reset(self):

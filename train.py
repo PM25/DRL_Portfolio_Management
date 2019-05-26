@@ -25,6 +25,7 @@ if (os.path.isfile(meta_path)):
     std = np.array(meta_data["std"])
     start_episode = meta_data["episode"] + 1
     max_reward = meta_data["reward"]
+    args.window = meta_data["window"]
     stock_data = StockData(args.train, mean, std)
     if(args.model != None):
         model_path = os.path.join(model_base_path, args.model)
@@ -46,15 +47,16 @@ out_data = {"std": list(std), "mean": list(mean)}
 end_episode = start_episode + args.episode + 1
 
 
-def save_model(model_name, episode_step, std, mean, reward):
+def save_model(model_name, episode_step, std, mean, reward, window_size):
     print('-' * 10)
     print("Save Model: " + model_name)
-    print('-' * 10)
+    print('-' * 10 + '\n')
 
     agent.save_model(model_name)
     out_data = {"model": model_name,
                 "episode": episode_step,
                 "reward": reward,
+                "window": window_size,
                 "std": std,
                 "mean": mean}
 
@@ -77,7 +79,7 @@ for episode_step in range(start_episode, end_episode):
 
         action = agent.choose_action(state)
         if (action == 0):  # Sit
-            reward -= 0.8
+            reward -= 0.7
         elif (action == 1):  # Buy
             money = agent.buy(close_price)
             if (money != False):
@@ -107,8 +109,10 @@ for episode_step in range(start_episode, end_episode):
     print("BUY {}, SELL {}".format(buy_count, sell_count))
     print("Total Reward: {:.1f} ({:.2%})".format(reward, reward/total_buy))
     print()
+
     agent.reset()
+
     if (reward > max_reward):
         max_reward = reward
         model_name = "episode_{}".format(episode_step)
-        save_model(model_name, episode_step, list(std), list(mean), reward)
+        save_model(model_name, episode_step, list(std), list(mean), reward, args.window)
