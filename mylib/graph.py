@@ -2,18 +2,19 @@ import matplotlib.pyplot as plt
 
 
 def draw_stock_predict(price, action, block=True):
-    price = [_price for (_, _price) in price]
+    price = [y for y in price]
     buy_point = []
     buy_price = []
     sell_point = []
     sell_price = []
     for (index, action) in enumerate(action):
-        if(action == 1):
+        if (action == 1 or action == 2 or action == 3):
             buy_point.append(index)
             buy_price.append(price[index])
-        elif(action == 2):
+        elif (action == 4 or action == 5 or action == 6):
             sell_point.append(index)
             sell_price.append(price[index])
+
     plt.figure("Prediction")
     plt.xlabel('Date')
     plt.ylabel('Close Price')

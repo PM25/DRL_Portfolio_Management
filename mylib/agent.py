@@ -20,10 +20,11 @@ class Agent:
     def __init__(self, window_size, feature_size, model_path="", buff_size=30, base_money=1000):
         self.feature_size = feature_size
         self.window_size = window_size
-        self.action_size = 3 # 0:Sit, 1:Buy, 2:Sell
-        self.buff = deque(maxlen=500)
+        self.action_size = 7 # 0:Sit, 1:Buy, 2:Buy(5), 3:Buy(10), 4: Sell, 5: Sell(5), 6: Sell(10)
+        self.buff = deque(maxlen=buff_size)
         self.buff_size= buff_size
-        self.epsilon = 0.05
+        self.base_epsilon = 0.01
+        self.epsilon = self.base_epsilon
         self.epsilon_decay = 0.95
         self.gamma = 0.95
         self.base_money = base_money
@@ -41,9 +42,13 @@ class Agent:
     def create_model(self):
         model = models.Sequential()
         model.add(layers.Dense(units=256, input_dim=self.feature_size * self.window_size, activation="relu"))
+        model.add(layers.Dropout(0.5, seed=10))
         model.add(layers.Dense(units=128, activation="relu"))
+        model.add(layers.Dropout(0.5, seed=10))
         model.add(layers.Dense(units=64, activation="relu"))
+        model.add(layers.Dropout(0.5, seed=10))
         model.add(layers.Dense(units=64, activation="relu"))
+        model.add(layers.Dropout(0.5, seed=10))
         model.add(layers.Dense(units=32, activation="relu"))
         model.add(layers.Dense(self.action_size, activation="linear"))
         model.compile(loss="mse", optimizer=optimizers.Adam(lr=0.001))
@@ -122,6 +127,7 @@ class Agent:
         self.buff.clear()
         self.buy_history.clear()
         self.hold_stock = 0
+        self.epsilon = self.base_epsilon
 
 
     def save_model(self, name="model", path="models"):
