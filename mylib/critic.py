@@ -8,7 +8,7 @@ import torch.nn.functional as F
 # Input: Environment State
 # Output: State Value
 class Critic(nn.Module):
-    def __init__(self, input_sz, seed=10):
+    def __init__(self, input_sz, seed=10, LR=10e-3):
         super().__init__()
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -21,7 +21,7 @@ class Critic(nn.Module):
         self.out = nn.Linear(in_features=16, out_features=1)
 
         self.hidden_state = self.reset_hidden()
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.parameters(), lr=LR)
 
 
     def reset_hidden(self, cuda=True):
@@ -34,7 +34,6 @@ class Critic(nn.Module):
 
 
     def forward(self, x):
-        x = torch.FloatTensor(x).cuda().squeeze()
         x = torch.sigmoid(self.input_layer(x))
         x = torch.tanh(self.hidden_1(x))
         x, self.hidden_state = self.rnn(x.view(1, -1, 128), self.hidden_state.data)

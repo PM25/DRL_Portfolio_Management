@@ -27,8 +27,8 @@ if __name__ == "__main__":
         features_sz = len(file_df.columns)
         action_sz = 3  # 0: Hold, 1: Buy, 2: Sell
         env = Environment(file_df)
-        actor = Actor(input_sz=features_sz, output_sz=action_sz, env=env, default_cash=args.cash).cuda()
-        critic = Critic(input_sz=features_sz).cuda()
+        actor = Actor(features_sz=features_sz, output_sz=action_sz, env=env, default_cash=args.cash).cuda()
+        critic = Critic(input_sz=actor.input_sz).cuda()
         graph = Graph(file_df["DATE"].values, file_df["CLOSE"].values)
 
         # Iteration
@@ -37,14 +37,15 @@ if __name__ == "__main__":
 
             env.reset()
             actor.reset()
-            for idx, state in file_df.iterrows():
+            for step in range(len(file_df)):
+                state = actor.get_state()
                 action = actor.choose_action(state)
                 next_state, reward = actor.step(action)
                 td_error = critic.learn(state, reward, next_state)
                 actor.learn(td_error)
                 actor.record()
-                if(idx % 100 == 0):
-                    print("Episode {} | Step {} | Reward {}".format(episode, idx, actor.portfolio_value()))
+                if(step % 100 == 0):
+                    print("Episode {} | Step {} | Reward {}".format(episode, step, actor.portfolio_value()))
                     counter = Counter(actor.history["ACTION"])
                     print("HOLD {} | BUY {} | SELL {}".format(counter[0], counter[1], counter[2]))
                     print('-' * 100)

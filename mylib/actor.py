@@ -9,41 +9,44 @@ from torch.distributions import Categorical
 # Input: Environment State
 # Output: Actions' Probability
 class Actor(nn.Module):
-    def __init__(self, input_sz, output_sz, env, default_cash=2000, seed=10):
+    def __init__(self, features_sz, output_sz, env, default_cash=2000, seed=10, enable_cuda=True, LR=10e-3):
         super().__init__()
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-        self.input_layer = nn.Linear(in_features=input_sz, out_features=128)
+        self.env = env
+        self.enable_cuda = enable_cuda
+        self.actions_log_prob_his = deque()
+        self.default_cash = default_cash
+        self.cash = self.default_cash
+        self.hold_stock_count = 0
+        self.action = 0
+        self.loss = torch.tensor(0)
+        self.history = {"DATE": [], "ACTION": [], "LOSS": [], "CASH": [], "PORTFOLIO_VALUE": []}
+        self.more_features_idx = ["CASH", "HOLD_STOCK"]
+        self.input_sz = features_sz + len(self.more_features_idx)
+
+        self.input_layer = nn.Linear(in_features=self.input_sz, out_features=128)
         self.hidden_1 = nn.Linear(in_features=128, out_features=128)
         self.rnn = nn.GRU(input_size=128, hidden_size=64, num_layers=3)
         self.hidden_2 = nn.Linear(in_features=64, out_features=32)
         self.hidden_3 = nn.Linear(in_features=32, out_features=16)
         self.out = nn.Linear(in_features=16, out_features=output_sz)
 
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
-        self.env = env
         self.hidden_state = self.reset_hidden()
-        self.actions_log_prob_his = deque()
-        self.hold_stock_count = 0
-        self.default_cash = default_cash
-        self.cash = self.default_cash
-        self.action = 0
-        self.loss = torch.tensor(0)
-        self.history = { "DATE": [], "ACTION": [], "LOSS": [], "CASH": [], "PORTFOLIO_VALUE": [] }
+        self.optimizer = optim.Adam(self.parameters(), lr=LR)
 
 
-    def reset_hidden(self, cuda=True):
+    def reset_hidden(self):
         hidden_sz = self.rnn.hidden_size
         n_layers = self.rnn.num_layers
         hidden_state = torch.zeros(n_layers, 1, hidden_sz)
-        self.hidden_state = hidden_state.cuda() if(cuda) else hidden_state
+        self.hidden_state = hidden_state.cuda() if(self.enable_cuda) else hidden_state
 
         return self.hidden_state
 
 
     def forward(self, x):
-        x = torch.tensor(x).cuda()
         x = torch.sigmoid(self.input_layer(x))
         x = torch.tanh(self.hidden_1(x))
         x, self.hidden_state = self.rnn(x.view(1, -1, 128), self.hidden_state.data)
@@ -85,6 +88,8 @@ class Actor(nn.Module):
         else:
             count = 0
 
+        return count
+
 
     def step(self, action):
         self.action = action
@@ -100,7 +105,7 @@ class Actor(nn.Module):
                 self.sell()
 
         self.env.step()
-        next_state = self.env.get_state().values
+        next_state = self.get_state()
         reward = self.portfolio_value() - self.default_cash
 
         return next_state, reward
@@ -114,6 +119,27 @@ class Actor(nn.Module):
         self.optimizer.step()
 
         return self.loss.item()
+
+
+    def get_state(self):
+        state = self.env.get_state().values
+        state_tensor = torch.FloatTensor(state).cuda().squeeze()
+        more_features = self.get_more_features()
+        more_features = torch.FloatTensor(more_features).cuda().squeeze()
+        state_tensor = torch.cat([state_tensor, more_features], dim=0)
+
+        return state_tensor
+
+
+    def get_more_features(self):
+        features = []
+        for idx in self.more_features_idx:
+            if(idx == "CASH"):
+                features.append(self.cash)
+            elif(idx == "HOLD_STOCK"):
+                features.append(self.hold_stock_count)
+
+        return features
 
 
     def record(self):
