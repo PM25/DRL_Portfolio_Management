@@ -14,6 +14,7 @@ parser.add_argument("--episode", "-e", type=int, default=1000, help="Episode Siz
 parser.add_argument("--model", "-m", type=str, default=None, help="Model Name.")
 args = parser.parse_args()
 
+<<<<<<< Updated upstream
 # Default Data
 if (args.train == None): args.train = "data/train/2002.TW.csv"
 if (args.window == None): args.window = 10
@@ -38,9 +39,49 @@ std = stockdata.std
 out_data = {}
 out_data["std"] = list(std)
 out_data["mean"] = list(mean)
+=======
+# Load Previous trained model.
+model_base_path = "models"
+meta_path = os.path.join(model_base_path, "metadata.json")
+
+if (os.path.isfile(meta_path)):
+    with open("models/metadata.json", 'r') as meta_file:
+        meta_data = json.load(meta_file)
+
+    mean = np.array(meta_data["mean"])
+    std = np.array(meta_data["std"])
+    start_episode = meta_data["episode"] + 1
+    args.window = meta_data["window"]
+
+    stock_data = StockData(args.train, mean, std)
+    if(args.model != None):
+        model_path = os.path.join(model_base_path, args.model)
+    else:
+        model_path = os.path.join(model_base_path, meta_data["model"])
+    feature_size = stock_data.feature_size
+    agent = Agent(args.window, feature_size, model_path, base_money=args.money)
+else:
+    stock_data = StockData(args.train)
+    mean = stock_data.mean
+    std = stock_data.std
+    start_episode = 0
+    feature_size = stock_data.feature_size
+    agent = Agent(args.window, feature_size, base_money=args.money)
+
+
+stock_raw_data = stock_data.raw_data
+out_data = {"std": list(std), "mean": list(mean)}
+>>>>>>> Stashed changes
 end_episode = start_episode + args.episode + 1
+max_reward = 0
 
 
+<<<<<<< Updated upstream
+=======
+
+
+
+>>>>>>> Stashed changes
 for episode_step in range(start_episode, end_episode):
     next_state = stockdata.get_state(0, args.window)
 
@@ -51,9 +92,13 @@ for episode_step in range(start_episode, end_episode):
     for sample_step in range(0, stockdata.sample_size):
         done = True if (sample_step == stockdata.sample_size - 1) else False
         state = next_state
+<<<<<<< Updated upstream
         if(sample_step != stockdata.sample_size - 1):
             next_state = stockdata.get_state(sample_step+1, args.window)
         close_price = float(stockdata.raw_data[sample_step][4])
+=======
+        close_price = float(stock_data.raw_data[sample_step][1])
+>>>>>>> Stashed changes
 
         action = agent.choose_action(state)
         if (action == 0):  # Sit
@@ -80,6 +125,7 @@ for episode_step in range(start_episode, end_episode):
     print("Total Reward: {:.1f} ({:.2%})".format(reward, reward/total_buy))
     print()
     agent.reset()
+<<<<<<< Updated upstream
     if (episode_step % 10 == 0 and episode_step != 0):
         print('-' * 10)
         print("Save Model: episode_{}".format(episode_step))
@@ -92,3 +138,10 @@ for episode_step in range(start_episode, end_episode):
         out_data["mean"] = list(mean)
         with open("models/metadata.json", 'w') as out_file:
             json.dump(out_data, out_file, ensure_ascii=False, indent=4)
+=======
+
+    if (reward > max_reward):
+        max_reward = reward
+        model_name = "episode_{}".format(episode_step)
+        agent.save_model(model_name, episode_step, list(std), list(mean))
+>>>>>>> Stashed changes
