@@ -9,8 +9,11 @@ from torch.distributions import Categorical
 # Input: Environment State
 # Output: Actions' Probability
 class Actor(nn.Module):
-    def __init__(self, input_sz, output_sz, env, default_cash=2000):
+    def __init__(self, input_sz, output_sz, env, default_cash=2000, seed=10):
         super().__init__()
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
         self.input_layer = nn.Linear(in_features=input_sz, out_features=128)
         self.hidden_1 = nn.Linear(in_features=128, out_features=128)
         self.rnn = nn.GRU(input_size=128, hidden_size=64, num_layers=3)
@@ -18,13 +21,16 @@ class Actor(nn.Module):
         self.hidden_3 = nn.Linear(in_features=32, out_features=16)
         self.out = nn.Linear(in_features=16, out_features=output_sz)
 
-        self.optimizer = optim.Adam(self.parameters(), lr=0.01)
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
         self.env = env
         self.hidden_state = self.reset_hidden()
         self.actions_log_prob_his = deque()
         self.hold_stock_count = 0
         self.default_cash = default_cash
         self.cash = self.default_cash
+        self.action = 0
+        self.loss = torch.tensor(0)
+        self.history = { "DATE": [], "ACTION": [], "LOSS": [], "CASH": [], "PORTFOLIO_VALUE": [] }
 
 
     def reset_hidden(self, cuda=True):
@@ -81,6 +87,7 @@ class Actor(nn.Module):
 
 
     def step(self, action):
+        self.action = action
         curr_close_price =  self.env.get_close_price()
 
         if(action == 0): # Hold
@@ -99,12 +106,26 @@ class Actor(nn.Module):
         return next_state, reward
 
 
-    def learn(self, state, action, td_error):
+    def learn(self, td_error):
         self.optimizer.zero_grad()
         log_prob = self.actions_log_prob_his.popleft()
-        loss = -log_prob * torch.FloatTensor(td_error).cuda()
-        loss.backward()
+        self.loss = -log_prob * torch.FloatTensor(td_error).cuda()
+        self.loss.backward()
         self.optimizer.step()
+
+        return self.loss.item()
+
+
+    def record(self):
+        self.history["DATE"].append(self.env.get_date(-1))
+        self.history["ACTION"].append(self.action)
+        self.history["LOSS"].append(self.loss.item())
+        self.history["CASH"].append(self.cash)
+        self.history["PORTFOLIO_VALUE"].append(self.portfolio_value())
+
+
+    def save_model(self, name="actor.pkl"):
+        torch.save(self, "models/"+name)
 
 
     def portfolio_value(self):
@@ -120,3 +141,6 @@ class Actor(nn.Module):
         self.actions_log_prob_his.clear()
         self.hold_stock_count = 0
         self.cash = self.default_cash
+        self.action = 0
+        self.loss = torch.tensor(0)
+        self.history = { "DATE": [], "ACTION": [], "LOSS": [], "CASH": [], "PORTFOLIO_VALUE": [] }

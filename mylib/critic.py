@@ -8,8 +8,11 @@ import torch.nn.functional as F
 # Input: Environment State
 # Output: State Value
 class Critic(nn.Module):
-    def __init__(self, input_sz):
+    def __init__(self, input_sz, seed=10):
         super().__init__()
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
         self.input_layer = nn.Linear(in_features=input_sz, out_features=128)
         self.hidden_1 = nn.Linear(in_features=128, out_features=128)
         self.rnn = nn.GRU(input_size=128, hidden_size=64, num_layers=3)
@@ -18,7 +21,7 @@ class Critic(nn.Module):
         self.out = nn.Linear(in_features=16, out_features=1)
 
         self.hidden_state = self.reset_hidden()
-        self.optimizer = optim.Adam(self.parameters(), lr=0.01)
+        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
 
 
     def reset_hidden(self, cuda=True):
@@ -55,3 +58,7 @@ class Critic(nn.Module):
         td_error = reward + next_value.item() - value.item()
 
         return td_error
+
+
+    def save_model(self, name="critic.pkl"):
+        torch.save(self, "models/"+name)

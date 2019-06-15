@@ -1,6 +1,37 @@
 import matplotlib.pyplot as plt
 
 
+class Graph:
+
+    def __init__(self, dates, price_his, block=True):
+        self.x = dates.tolist()
+        self.y = price_his.tolist()
+        self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+        self.block = block
+
+
+    def draw(self):
+        plt.plot(self.x, self.y)
+        plt.show(block=self.block)
+
+
+    def date_to_price(self, date):
+        idx = self.x.index(date)
+        price = self.y[idx]
+
+        return price
+
+
+    def add_dots_on_line(self, dates, dots_style):
+        for date, style in zip(dates, dots_style):
+            if(style == 0): continue
+
+            price = self.date_to_price(date)
+            style = self.colors[int(style)] + 'o'
+            plt.plot(date, price, style, ms=3)
+
+
+
 def draw_stock_predict(price, action, block=True):
     price = [y for y in price]
     buy_point = []

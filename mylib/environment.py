@@ -35,6 +35,12 @@ class Environment:
         return df["CLOSE"].values
 
 
+    def get_date(self, offset=0):
+        df = self.get_state(offset=offset)
+
+        return df["DATE"].values
+
+
     def step(self, sz=1):
         success = False if(self.cur_state_idx >= (self.sz-1)) else True
 
