@@ -30,10 +30,12 @@ if __name__ == "__main__":
             action_sz = 3 # 0: Hold, 1: Buy, 2: Sell
             env = Environment(file_df)
             actor = Actor(input_sz=features_sz, output_sz=action_sz, env=env).cuda()
-            critic = Critic()
+            critic = Critic(input_sz=features_sz).cuda()
 
             for idx, state in file_df.iterrows():
                 action = actor.choose_action(state)
                 next_state, reward = actor.step(action)
                 td_error = critic.learn(state, reward, next_state)
                 actor.learn(state, action, td_error)
+                if(idx % 100 == 0):
+                    print("Episode {} | Step {} | Reward {}".format(episode, idx, actor.portfolio_value()))

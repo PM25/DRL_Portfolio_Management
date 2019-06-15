@@ -29,13 +29,19 @@ class Environment:
         return state
 
 
+    def get_close_price(self):
+        df = self.get_state()
+
+        return df["CLOSE"].values
+
+
     def step(self, sz=1):
         success = False if(self.cur_state_idx >= (self.sz-1)) else True
 
         if(success):
             self.cur_state_idx += sz
 
-        return (success, self.get_state(sz))
+        return success
 
 
     def reset(self):

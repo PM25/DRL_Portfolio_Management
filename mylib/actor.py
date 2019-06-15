@@ -1,6 +1,7 @@
 from collections import deque
 import torch
 from torch import nn
+from torch import optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
@@ -8,7 +9,7 @@ from torch.distributions import Categorical
 # Input: Environment State
 # Output: Actions' Probability
 class Actor(nn.Module):
-    def __init__(self, input_sz, output_sz, env):
+    def __init__(self, input_sz, output_sz, env, default_cash=2000):
         super().__init__()
         self.input_layer = nn.Linear(in_features=input_sz, out_features=128)
         self.hidden_1 = nn.Linear(in_features=128, out_features=128)
@@ -17,9 +18,13 @@ class Actor(nn.Module):
         self.hidden_3 = nn.Linear(in_features=32, out_features=16)
         self.out = nn.Linear(in_features=16, out_features=output_sz)
 
+        self.optimizer = optim.Adam(self.parameters(), lr=0.01)
         self.env = env
         self.hidden_state = self.reset_hidden()
         self.actions_log_prob_his = deque()
+        self.hold_stock_count = 0
+        self.default_cash = default_cash
+        self.cash = self.default_cash
 
 
     def reset_hidden(self, cuda=True):
@@ -53,12 +58,65 @@ class Actor(nn.Module):
         return action.item()
 
 
+    def buy(self, count=1):
+        curr_close_price = self.env.get_close_price()
+        total_price = float(curr_close_price) * count
+
+        if(self.cash >= total_price):
+            self.cash -= total_price
+            self.hold_stock_count += count
+        else:
+            count = 0
+
+        return count
+
+
+    def sell(self, count=1):
+        if(self.hold_stock_count >= count):
+            self.hold_stock_count -= count
+            curr_close_price = self.env.get_close_price()
+            self.cash += float(curr_close_price) * count
+        else:
+            count = 0
+
+
     def step(self, action):
+        curr_close_price =  self.env.get_close_price()
+
+        if(action == 0): # Hold
+            pass
+        elif(action == 1): # Buy
+            if(self.cash >= curr_close_price):
+                self.buy()
+        elif(action == 2): # Sell
+            if(self.hold_stock_count >= 0):
+                self.sell()
+
         self.env.step()
-        next_state = self.env.get_state()
-        reward = 0
+        next_state = self.env.get_state().values
+        reward = self.portfolio_value() - self.default_cash
+
         return next_state, reward
 
 
     def learn(self, state, action, td_error):
-        pass
+        self.optimizer.zero_grad()
+        log_prob = self.actions_log_prob_his.popleft()
+        loss = -log_prob * torch.FloatTensor(td_error).cuda()
+        loss.backward()
+        self.optimizer.step()
+
+
+    def portfolio_value(self):
+        cash = self.hold_stock_count * self.env.get_close_price()
+        cash += self.cash
+
+        return cash
+
+
+    def reset(self):
+        self.env.reset()
+        self.hidden_state = self.reset_hidden()
+        self.actions_log_prob_his.clear()
+        self.hold_stock_count = 0
+        self.cash = self.default_cash
