@@ -4,12 +4,13 @@ from torch import nn
 from torch import optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
+from mylib.brain import Brain
 
 
 # Input: Environment State
 # Output: Actions' Probability
-class Actor(nn.Module):
-    def __init__(self, features_sz, output_sz, env, default_cash=2000, seed=10, enable_cuda=True, LR=10e-3):
+class Actor:
+    def __init__(self, env, action_sz=3, default_cash=2000, seed=10, enable_cuda=True, trans_tax=3e-3, model=None):
         super().__init__()
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -21,45 +22,30 @@ class Actor(nn.Module):
         self.cash = self.default_cash
         self.hold_stock_count = 0
         self.action = 0
+        self.transaction_tax = trans_tax
         self.loss = torch.tensor(0)
         self.history = {"DATE": [], "ACTION": [], "LOSS": [], "CASH": [], "PORTFOLIO_VALUE": []}
         self.more_features_idx = ["CASH", "HOLD_STOCK"]
-        self.input_sz = features_sz + len(self.more_features_idx)
+        self.input_sz = self.env.features_sz + len(self.more_features_idx)
+        self.penalty = 1
+        self.action_sz = action_sz
 
-        self.input_layer = nn.Linear(in_features=self.input_sz, out_features=128)
-        self.hidden_1 = nn.Linear(in_features=128, out_features=128)
-        self.rnn = nn.GRU(input_size=128, hidden_size=64, num_layers=3)
-        self.hidden_2 = nn.Linear(in_features=64, out_features=32)
-        self.hidden_3 = nn.Linear(in_features=32, out_features=16)
-        self.out = nn.Linear(in_features=16, out_features=output_sz)
-
-        self.hidden_state = self.reset_hidden()
-        self.optimizer = optim.Adam(self.parameters(), lr=LR)
+        if(model != None):
+            self.brain = self.load_brain(model)
+        else:
+            self.brain = Brain(self.input_sz, self.action_sz).cuda()
 
 
-    def reset_hidden(self):
-        hidden_sz = self.rnn.hidden_size
-        n_layers = self.rnn.num_layers
-        hidden_state = torch.zeros(n_layers, 1, hidden_sz)
-        self.hidden_state = hidden_state.cuda() if(self.enable_cuda) else hidden_state
+    def load_brain(self, name):
+        path = "models/" + name
+        model = torch.load(path)
 
-        return self.hidden_state
-
-
-    def forward(self, x):
-        x = torch.sigmoid(self.input_layer(x))
-        x = torch.tanh(self.hidden_1(x))
-        x, self.hidden_state = self.rnn(x.view(1, -1, 128), self.hidden_state.data)
-        x = F.relu(self.hidden_2(x.squeeze()))
-        x = F.relu(self.hidden_3(x))
-        actions_prob = F.softmax(self.out(x), dim=-1)
-
-        return actions_prob
+        return model
 
 
     # 0: Hold, 1: Buy, 2: Sell
     def choose_action(self, state):
-        actions_prob = self.forward(state)
+        actions_prob = self.brain.forward(state)
         m = Categorical(actions_prob)
         action = m.sample()
         self.actions_log_prob_his.append(m.log_prob(action))
@@ -69,7 +55,7 @@ class Actor(nn.Module):
 
     def buy(self, count=1):
         curr_close_price = self.env.get_close_price()
-        total_price = float(curr_close_price) * count
+        total_price = float(curr_close_price) * count * (1 + self.transaction_tax)
 
         if(self.cash >= total_price):
             self.cash -= total_price
@@ -96,27 +82,33 @@ class Actor(nn.Module):
         curr_close_price =  self.env.get_close_price()
 
         if(action == 0): # Hold
-            pass
+            self.penalty *= 1.005
         elif(action == 1): # Buy
             if(self.cash >= curr_close_price):
                 self.buy()
+            else:
+                self.penalty *= 1.001
         elif(action == 2): # Sell
             if(self.hold_stock_count >= 0):
                 self.sell()
+            else:
+                self.penalty *= 1.01
+        else:
+            print("*Error: Action out of range.")
 
         self.env.step()
         next_state = self.get_state()
-        reward = self.portfolio_value() - self.default_cash
+        reward = self.portfolio_value() - self.default_cash - self.penalty
 
         return next_state, reward
 
 
     def learn(self, td_error):
-        self.optimizer.zero_grad()
+        self.brain.optimizer.zero_grad()
         log_prob = self.actions_log_prob_his.popleft()
         self.loss = -log_prob * torch.FloatTensor(td_error).cuda()
         self.loss.backward()
-        self.optimizer.step()
+        self.brain.optimizer.step()
 
         return self.loss.item()
 
@@ -151,7 +143,11 @@ class Actor(nn.Module):
 
 
     def save_model(self, name="actor.pkl"):
-        torch.save(self, "models/"+name)
+        try:
+            torch.save(self.brain, "models/"+name)
+            print("*Successfully Saved Model: {}".format(name))
+        except:
+            print("*Failed to Saved Model: {}".format(name))
 
 
     def portfolio_value(self):
@@ -163,7 +159,6 @@ class Actor(nn.Module):
 
     def reset(self):
         self.env.reset()
-        self.hidden_state = self.reset_hidden()
         self.actions_log_prob_his.clear()
         self.hold_stock_count = 0
         self.cash = self.default_cash

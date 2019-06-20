@@ -6,7 +6,8 @@ class Environment:
         assert (isinstance(data, pd.DataFrame))
 
         self.data = data
-        self.sz = len(self.data)
+        self.row_sz = self.data.shape[0]
+        self.features_sz = self.data.shape[1]
         self.cur_state_idx = self.reset()
 
 
@@ -18,10 +19,10 @@ class Environment:
             first_row_df = self.data[0:1]
             dup_row_df = pd.concat([first_row_df] * abs(start_idx))
             state = dup_row_df.append(self.data[0:end_idx])
-        elif(end_idx > self.sz):
-            state = self.data[start_idx:self.sz]
-            last_row_df = self.data[self.sz-1:self.sz]
-            dup_row_df = pd.concat([last_row_df] * abs(end_idx - self.sz))
+        elif(end_idx > self.row_sz):
+            state = self.data[start_idx:self.row_sz]
+            last_row_df = self.data[self.row_sz - 1:self.row_sz]
+            dup_row_df = pd.concat([last_row_df] * abs(end_idx - self.row_sz))
             state = state.append(dup_row_df)
         else:
             state = self.data[start_idx:end_idx]
@@ -42,7 +43,7 @@ class Environment:
 
 
     def step(self, sz=1):
-        success = False if(self.cur_state_idx >= (self.sz-1)) else True
+        success = False if(self.cur_state_idx >= (self.row_sz - 1)) else True
 
         if(success):
             self.cur_state_idx += sz

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 # Input: Environment State
 # Output: State Value
 class Critic(nn.Module):
-    def __init__(self, input_sz, seed=10, LR=10e-3):
+    def __init__(self, input_sz, seed=10, LR=5e-4):
         super().__init__()
         torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)

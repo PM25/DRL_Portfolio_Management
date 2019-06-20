@@ -8,10 +8,10 @@ class Graph:
         self.y = price_his.tolist()
         self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
         self.block = block
+        plt.plot(self.x, self.y)
 
 
     def draw(self):
-        plt.plot(self.x, self.y)
         plt.show(block=self.block)
 
 

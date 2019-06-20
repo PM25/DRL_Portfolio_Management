@@ -5,7 +5,6 @@ from mylib.stock import Stock
 from mylib.environment import Environment
 from mylib.actor import Actor
 from mylib.critic import Critic
-from mylib.graph import Graph
 
 
 # Arguments
@@ -24,31 +23,28 @@ if __name__ == "__main__":
     train_files_df, val_files_df = stock.read_files(files_name[0:1], [.8, .2])
 
     for file_df in train_files_df:
-        features_sz = len(file_df.columns)
-        action_sz = 3  # 0: Hold, 1: Buy, 2: Sell
+        file_df = file_df.fillna(file_df.mean())
         env = Environment(file_df)
-        actor = Actor(features_sz=features_sz, output_sz=action_sz, env=env, default_cash=args.cash).cuda()
+        actor = Actor(env=env, action_sz=3, default_cash=args.cash)
         critic = Critic(input_sz=actor.input_sz).cuda()
-        graph = Graph(file_df["DATE"].values, file_df["CLOSE"].values)
 
         # Iteration
         for episode in range(args.episode):
             print("[ Episode {}/{} ]".format(episode, args.episode))
+            print('-' * 25)
 
             env.reset()
             actor.reset()
-            for step in range(len(file_df)):
+            for step in range(env.row_sz):
                 state = actor.get_state()
                 action = actor.choose_action(state)
                 next_state, reward = actor.step(action)
                 td_error = critic.learn(state, reward, next_state)
                 actor.learn(td_error)
                 actor.record()
-                if(step % 100 == 0):
-                    print("Episode {} | Step {} | Reward {}".format(episode, step, actor.portfolio_value()))
-                    counter = Counter(actor.history["ACTION"])
-                    print("HOLD {} | BUY {} | SELL {}".format(counter[0], counter[1], counter[2]))
-                    print('-' * 100)
 
-            # graph.add_dots_on_line(actor.history["DATE"], actor.history["ACTION"])
-            # graph.draw()
+            counter = Counter(actor.history["ACTION"])
+            print("Episode {} | Reward {}".format(episode, actor.portfolio_value()))
+            print("HOLD {} | BUY {} | SELL {} \n".format(counter[0], counter[1], counter[2]))
+            if(actor.portfolio_value() > (actor.default_cash * 1.01)):
+                actor.save_model(str(episode) + '.pkl')
