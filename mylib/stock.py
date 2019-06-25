@@ -17,7 +17,7 @@ class Stock:
         return [fname for fname in self.base_dir.glob("*.csv")]
 
 
-    # {files_name}: a list that contain files name.
+    # {files_name}: a list that contain files' name.
     def read_files(self, files_name=None, split_ratio=None):
         if(files_name == None):
             files_name = self.files_name
@@ -38,7 +38,7 @@ class Stock:
 
 
     def split_df(self, df, start_ratio, end_ratio):
-        assert(start_ratio >= 0 and start_ratio <= 1 and start_ratio < end_ratio)
+        assert(start_ratio >= 0 and start_ratio <= 1 and start_ratio <= end_ratio)
         assert (end_ratio >= 0 and end_ratio <= 1)
 
         row_count = len(df)
