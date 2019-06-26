@@ -17,8 +17,9 @@ class Critic(nn.Module):
         torch.cuda.manual_seed_all(seed)
 
         self.enable_cuda = enable_cuda
-        self.brain = Brain(input_sz, 1, softmax=False, enable_cuda=enable_cuda, lr=1e-2)
+        self.brain = Brain(input_sz, 1, softmax=False, enable_cuda=enable_cuda)
         self.brain = self.to_cuda(self.brain)
+        self.optimizer = optim.Adam(self.brain.parameters(), lr=LR)
 
 
     def exp_replay(self, state, action, reward):
@@ -29,11 +30,11 @@ class Critic(nn.Module):
         next_value = self.brain.forward(np.append(next_state, next_action))
         td_error = reward + next_value.item() - value.item()
 
-        self.brain.optimizer.zero_grad()
+        self.optimizer.zero_grad()
         reward_tensor = self.to_cuda(torch.FloatTensor(reward))
         loss = self.to_cuda(F.smooth_l1_loss(value, reward_tensor))
         loss.backward()
-        self.brain.optimizer.step()
+        self.optimizer.step()
 
         return td_error
 

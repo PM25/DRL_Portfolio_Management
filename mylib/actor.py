@@ -33,13 +33,15 @@ class Actor:
         self.input_sz = self.env.features_sz + len(self.more_features_idx)
         self.penalty = 1
         self.action_sz = action_sz
-        self.action_median = self.action_sz/2
+        self.action_median = int(self.action_sz/2)
 
         if(model != None):
             self.brain = self.load_brain(model)
         else:
             self.brain = Brain(self.input_sz, self.action_sz, enable_cuda=enable_cuda)
             self.brain = self.to_cuda(self.brain)
+
+        self.optimizer = optim.Adam(self.brain.parameters(), lr=1e-2)
 
 
     def load_brain(self, name):
@@ -103,7 +105,7 @@ class Actor:
                 self.penalty *= 1.01
         elif(action > self.action_median): # Sell
             sell_count = action - self.action_median
-            if(self.hold_stock_count > sell_count):
+            if(self.hold_stock_count >= sell_count):
                 self.sell(sell_count)
                 self.penalty /= 1.01
             else:
@@ -120,10 +122,10 @@ class Actor:
 
     def learn(self, td_error, drop_rate=0):
         if(random.random() >= drop_rate):
-            self.brain.optimizer.zero_grad()
+            self.optimizer.zero_grad()
             self.loss = -self.action_log_prob * self.to_cuda(torch.FloatTensor(td_error))
             self.loss.backward()
-            self.brain.optimizer.step()
+            self.optimizer.step()
 
 
     def get_state(self):

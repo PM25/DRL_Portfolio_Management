@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 
 class Brain(nn.Module):
-    def __init__(self, input_sz, output_sz, lr=1e-3, softmax=True, enable_cuda=True):
+    def __init__(self, input_sz, output_sz, softmax=True, enable_cuda=True):
         super().__init__()
         self.softmax = softmax
         self.enable_cuda = enable_cuda
@@ -18,7 +18,6 @@ class Brain(nn.Module):
         self.out = nn.Linear(in_features=16, out_features=output_sz)
 
         self.hidden_state = self.reset_hidden()
-        self.optimizer = optim.Adam(self.parameters(), lr=lr)
 
 
     def forward(self, x):

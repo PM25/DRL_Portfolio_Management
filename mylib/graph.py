@@ -15,8 +15,8 @@ class Graph:
     def draw_all(self):
         plt_counts = len(self.actors)
         for (idx, actor) in enumerate(self.actors, 1):
-            date = actor.env.data["DATE"]
-            price = actor.env.data["CLOSE"]
+            date = actor.env.data["DATE"].values
+            price = actor.env.data["CLOSE"].values
             actions = actor.history["ACTION"]
             action_sz= actor.action_sz
             self.draw_action(date, price, actions, action_sz, idx)
@@ -34,7 +34,7 @@ class Graph:
         plt.figure("STOCK {}".format(idx))
         plt.plot(x, y)
         for (idx, action) in enumerate(actions):
-            if (action == (action_sz/2)): continue
+            if (action == int(action_sz/2)): continue
             color = self.colors[int(action)]
             plt.plot(x[idx], y[idx], color + 'o', ms=3)
 

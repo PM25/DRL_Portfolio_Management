@@ -26,7 +26,7 @@ class Stock:
 
         assert(sum(split_ratio) == 1)
 
-        files_df = [pd.read_csv(fname) for fname in files_name]
+        files_df = [pd.read_csv(fname).drop(["CODE"], axis=1) for fname in files_name]
         start_ratio = 0
         split_files_df = []
         for ratio in split_ratio:
