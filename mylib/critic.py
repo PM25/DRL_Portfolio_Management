@@ -3,55 +3,52 @@ import torch
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
+import numpy as np
+
+from mylib.brain import Brain
 
 
 # Input: Environment State
 # Output: State Value
 class Critic(nn.Module):
-    def __init__(self, input_sz):
+    def __init__(self, input_sz, seed=10, LR=5e-4, enable_cuda=True):
         super().__init__()
-        self.input_layer = nn.Linear(in_features=input_sz, out_features=128)
-        self.hidden_1 = nn.Linear(in_features=128, out_features=128)
-        self.rnn = nn.GRU(input_size=128, hidden_size=64, num_layers=3)
-        self.hidden_2 = nn.Linear(in_features=64, out_features=32)
-        self.hidden_3 = nn.Linear(in_features=32, out_features=16)
-        self.out = nn.Linear(in_features=16, out_features=1)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
 
-        self.hidden_state = self.reset_hidden()
-        self.optimizer = optim.Adam(self.parameters(), lr=0.01)
+        self.enable_cuda = enable_cuda
+        self.brain = Brain(input_sz, 1, softmax=False, enable_cuda=enable_cuda)
+        self.brain = self.to_cuda(self.brain)
+        self.optimizer = optim.Adam(self.brain.parameters(), lr=LR)
 
 
-    def reset_hidden(self, cuda=True):
-        hidden_sz = self.rnn.hidden_size
-        n_layers = self.rnn.num_layers
-        hidden_state = torch.zeros(n_layers, 1, hidden_sz)
-        self.hidden_state = hidden_state.cuda() if(cuda) else hidden_state
+    def exp_replay(self, state, action, reward):
+        pass
 
-        return self.hidden_state
-
-
-    def forward(self, x):
-        x = torch.FloatTensor(x).cuda().squeeze()
-        x = torch.sigmoid(self.input_layer(x))
-        x = torch.tanh(self.hidden_1(x))
-        x, self.hidden_state = self.rnn(x.view(1, -1, 128), self.hidden_state.data)
-        x = F.relu(self.hidden_2(x.squeeze()))
-        x = F.relu(self.hidden_3(x))
-        value = self.out(x)
-
-        return value
-
-
-    def learn(self, state, reward, next_state):
-        value = self.forward(state)
+    def learn(self, state, action, reward, next_state, next_action):
+        value = self.brain.forward(np.append(state, action))
+        next_value = self.brain.forward(np.append(next_state, next_action))
+        td_error = reward + next_value.item() - value.item()
 
         self.optimizer.zero_grad()
-        reward_tensor = torch.FloatTensor(reward).cuda()
-        loss = F.smooth_l1_loss(value, reward_tensor).cuda()
+        reward_tensor = self.to_cuda(torch.FloatTensor(reward))
+        loss = self.to_cuda(F.smooth_l1_loss(value, reward_tensor))
         loss.backward()
         self.optimizer.step()
 
-        next_value = self.forward(next_state)
-        td_error = reward + next_value.item() - value.item()
-
         return td_error
+
+
+    def to_cuda(self, tensor):
+        if(self.enable_cuda == True):
+            tensor = tensor.cuda()
+
+        return tensor
+
+
+    def save_model(self, name="critic.pkl"):
+        try:
+            torch.save(self.brain.cpu(), "models/"+name)
+            print("*Successfully Saved Model: {}".format(name))
+        except:
+            print("*Failed to Saved Model: {}".format(name))

@@ -17,7 +17,7 @@ class Stock:
         return [fname for fname in self.base_dir.glob("*.csv")]
 
 
-    # {files_name}: a list that contain files name.
+    # {files_name}: a list that contain files' name.
     def read_files(self, files_name=None, split_ratio=None):
         if(files_name == None):
             files_name = self.files_name
@@ -26,7 +26,7 @@ class Stock:
 
         assert(sum(split_ratio) == 1)
 
-        files_df = [pd.read_csv(fname) for fname in files_name]
+        files_df = [pd.read_csv(fname).drop(["CODE"], axis=1) for fname in files_name]
         start_ratio = 0
         split_files_df = []
         for ratio in split_ratio:
@@ -38,7 +38,7 @@ class Stock:
 
 
     def split_df(self, df, start_ratio, end_ratio):
-        assert(start_ratio >= 0 and start_ratio <= 1 and start_ratio < end_ratio)
+        assert(start_ratio >= 0 and start_ratio <= 1 and start_ratio <= end_ratio)
         assert (end_ratio >= 0 and end_ratio <= 1)
 
         row_count = len(df)

@@ -1,39 +1,52 @@
 import matplotlib.pyplot as plt
 
 
-def draw_stock_predict(price, action, block=True):
-    price = [y for y in price]
-    buy_point = []
-    buy_price = []
-    sell_point = []
-    sell_price = []
-    for (index, action) in enumerate(action):
-        if (action == 1 or action == 2 or action == 3):
-            buy_point.append(index)
-            buy_price.append(price[index])
-        elif (action == 4 or action == 5 or action == 6):
-            sell_point.append(index)
-            sell_price.append(price[index])
+class Graph:
 
-    plt.figure("Prediction")
-    plt.xlabel('Date')
-    plt.ylabel('Close Price')
-    plt.plot(price, label="PRICE")
-    plt.plot(buy_point, buy_price, 'ro', ms=3, label="BUY")
-    plt.plot(sell_point, sell_price, 'bo', ms=3, label="SELL")
-    plt.legend()
-    plt.show(block=block)
+    def __init__(self):
+        self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+        self.actors = []
 
 
-def draw_info(money, property, stock_count, block=True):
-    plt.figure("Info")
-    plt.subplot(2, 1, 1)
-    plt.axhline(y=money[0], color='lightgray', linestyle="--", label="Inital Possess Money")
-    plt.plot(money, label="Possess Money")
-    plt.plot(property, label="Possess Money + Stock Value")
-    plt.legend()
+    def append_actor(self, actor):
+        self.actors.append(actor)
 
-    plt.subplot(2, 1, 2)
-    plt.plot(stock_count, label="Hold Stock Count")
-    plt.legend()
-    plt.show(block=block)
+
+    def draw_all(self):
+        plt_counts = len(self.actors)
+        for (idx, actor) in enumerate(self.actors, 1):
+            date = actor.env.data["DATE"].values
+            price = actor.env.data["CLOSE"].values
+            actions = actor.history["ACTION"]
+            action_sz= actor.action_sz
+            self.draw_action(date, price, actions, action_sz, idx)
+
+            default_cash = actor.default_cash
+            cash = actor.history["CASH"]
+            portfolio_value = actor.history["PORTFOLIO_VALUE"]
+            stock = actor.history["STOCK_HOLD"]
+            self.draw_info(default_cash, cash, portfolio_value, stock, idx)
+
+        plt.show()
+
+
+    def draw_action(self, x, y, actions, action_sz, idx):
+        plt.figure("STOCK {}".format(idx))
+        plt.plot(x, y)
+        for (idx, action) in enumerate(actions):
+            if (action == int(action_sz/2)): continue
+            color = self.colors[int(action)]
+            plt.plot(x[idx], y[idx], color + 'o', ms=3)
+
+
+    def draw_info(self, default_cash, cash, portfolio_value, stock, idx):
+        plt.figure("STOCK {}' Info".format(idx))
+        plt.subplot(2, 1, 1)
+        plt.axhline(y=default_cash, color='lightgray', linestyle="--", label="Inital Possess Money")
+        plt.plot(cash, label="Possess Money")
+        plt.plot(portfolio_value, label="Possess Money + Stock Value")
+        plt.legend()
+
+        plt.subplot(2, 1, 2)
+        plt.plot(stock, label="Hold Stock Count")
+        plt.legend()
