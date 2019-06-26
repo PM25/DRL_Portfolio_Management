@@ -95,7 +95,7 @@ class Actor:
         curr_close_price =  self.env.get_close_price()
 
         if(action == self.action_median): # Hold
-            self.penalty *= 1.01
+            self.penalty *= 1.005
         elif(action < self.action_median): # Buy
             buy_count = self.action_median - action
             if(self.cash >= (curr_close_price*buy_count)):

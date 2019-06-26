@@ -45,8 +45,11 @@ if __name__ == "__main__":
             for step in range(env.row_sz):
                 next_state, reward = actor.step(action)
                 next_action = actor.choose_action(next_state)
-                td_error = critic.learn(state, action, reward, next_state, next_action)
-                actor.learn(td_error, 0.7)
+                td_error = critic.td_error(state, action, reward, next_state, next_action)
+
+                critic.exp_replay(state, action, reward)
+                actor.learn(td_error, 0.3)
+
                 actor.record()
                 state, action = next_state, next_action
 

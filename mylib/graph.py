@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 class Graph:
 
     def __init__(self):
-        self.colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+        self.colors = ['#ff0000', '#ff4444', '#ff8888', 'w', '#8888ff', '#4444ff', '#0000ff']
         self.actors = []
 
 
@@ -36,7 +36,7 @@ class Graph:
         for (idx, action) in enumerate(actions):
             if (action == int(action_sz/2)): continue
             color = self.colors[int(action)]
-            plt.plot(x[idx], y[idx], color + 'o', ms=3)
+            plt.plot(x[idx], y[idx], 'o', ms=3, color=color)
 
 
     def draw_info(self, default_cash, cash, portfolio_value, stock, idx):

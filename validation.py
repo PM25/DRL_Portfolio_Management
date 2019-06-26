@@ -14,7 +14,7 @@ import random
 parser = argparse.ArgumentParser(description="Portfolio Management Model Training (Actor Critic)")
 parser.add_argument("--data", "-d", type=str, default="data", help="Path to stock training data.")
 # parser.add_argument("--model", "-m", type=str, help="Model Name.", required=True)
-parser.add_argument("--model", "-m", type=str, default="0.pkl", help="Model Name.")
+parser.add_argument("--model", "-m", type=str, default="5.pkl", help="Model Name.")
 parser.add_argument("--cash", type=int, default=2000, help="Initial given cash.")
 args = parser.parse_args()
 
